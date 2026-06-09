@@ -31,7 +31,7 @@ class MemoLayout extends ProgramLayout {
 
   @override
   List<int> toBytes() {
-    return StringUtils.toBytes(memo);
+    return StringUtils.encode(memo); // UTF-8, symmetric with fromBuffer
   }
 
   @override
