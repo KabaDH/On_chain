@@ -55,7 +55,10 @@ enum ETHTransactionType {
 /// Utility class for Ethereum transaction-related operations.
 class ETHTransactionUtils {
   /// Converts a [BigInt] to a byte list with a maximum length of 32 bytes.
+  /// Returns an empty list if the value is 0, so that RLP encodes it as the
+  /// canonical empty byte string (0x80) rather than a non-canonical 0x00.
   static List<int> bigintToBytes(BigInt value) {
+    if (value == BigInt.zero) return [];
     final toBytes = BigintUtils.toBytes(
       value,
       length: BigintUtils.bitlengthInBytes(value),
