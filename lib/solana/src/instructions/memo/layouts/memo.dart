@@ -1,3 +1,4 @@
+import 'package:blockchain_utils/helper/extensions/extensions.dart';
 import 'package:blockchain_utils/layout/layout.dart';
 import 'package:blockchain_utils/utils/utils.dart';
 import 'package:on_chain/solana/src/borsh_serialization/program_layout.dart';
@@ -5,18 +6,32 @@ import 'package:on_chain/solana/src/instructions/memo/instruction/instructions.d
 
 /// Represents the layout for a memo in a Solana transaction.
 class MemoLayout extends ProgramLayout {
-  /// The memo string.
-  final String memo;
+  /// The raw memo bytes.
+  ///
+  /// Use [MemoLayout.fromString] to build one from text and [memo] to read it
+  /// back as a best-effort UTF-8 string.
+  final List<int> memoBytes;
 
-  /// Constructs a MemoLayout instance.
-  const MemoLayout({required this.memo});
+  /// Constructs a MemoLayout instance from raw bytes.
+  MemoLayout({required List<int> memoBytes})
+    : memoBytes = memoBytes.asImmutableBytes;
 
-  /// Constructs a MemoLayout instance from a buffer.
-  factory MemoLayout.fromBuffer(List<int> data) {
-    return MemoLayout(
-        memo: StringUtils.decode(data,
-            type: StringEncoding.utf8, allowInvalidOrMalformed: true));
-  }
+  /// Constructs a MemoLayout instance from a UTF-8 string.
+  factory MemoLayout.fromString(String memo) =>
+      MemoLayout(memoBytes: StringUtils.encode(memo));
+
+  /// Constructs a MemoLayout instance from a buffer, preserving the bytes as-is.
+  factory MemoLayout.fromBuffer(List<int> data) => MemoLayout(memoBytes: data);
+
+  /// The memo decoded as a best-effort UTF-8 string.
+  ///
+  /// Lossy for non-UTF-8 payloads; use [memoBytes]/[toBytes] when exact bytes
+  /// matter.
+  String get memo => StringUtils.decode(
+    memoBytes,
+    type: StringEncoding.utf8,
+    allowInvalidOrMalformed: true,
+  );
 
   @override
   StructLayout get layout => throw UnimplementedError();
@@ -25,17 +40,15 @@ class MemoLayout extends ProgramLayout {
   MemoProgramInstruction get instruction => MemoProgramInstruction.memo;
 
   @override
-  Map<String, dynamic> serialize() {
-    return {};
-  }
+  Map<String, dynamic> serialize() => {};
 
   @override
-  List<int> toBytes() {
-    return StringUtils.encode(memo); // UTF-8, symmetric with fromBuffer
-  }
+  List<int> toBytes() => memoBytes;
 
   @override
-  Map<String, dynamic> toJson() {
-    return {'memo': memo};
-  }
+  Map<String, dynamic> toJson() => {
+    'memo':
+        StringUtils.tryDecode(memoBytes) ??
+        BytesUtils.toHexString(memoBytes, prefix: '0x'),
+  };
 }
