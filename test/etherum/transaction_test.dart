@@ -77,4 +77,56 @@ void main() {
     expect(decode.serialized, serialized);
     expect(decode.maxPriorityFeePerGas, BigInt.zero);
   });
+
+  /// `toEstimate()` must emit the `gas` field when a gas limit is set, so the
+  /// node estimates against that allowed limit instead of the ~40M block gas
+  /// limit. Without it strict op-geth nodes (e.g. OP Sepolia) reject the
+  /// estimate request with "intrinsic gas too high".
+  test('toEstimate includes gas when gasLimit > 0', () {
+    final from = ETHAddress('0x9771D14139a63561189E190BC808a1Ea160ec52d');
+    final token = ETHAddress('0x5fd84259d66Cd46123540766Be93DFE6D43130D7');
+    // ERC20 transfer(0x4204...81c0, 1000) calldata.
+    final data = BytesUtils.fromHexString(
+      'a9059cbb0000000000000000000000004204711fa7fe0a884ea057987d4e2ac1753181c0'
+      '00000000000000000000000000000000000000000000000000000000000003e8',
+    );
+    final transaction = ETHTransaction(
+      nonce: 17,
+      from: from,
+      type: ETHTransactionType.legacy,
+      to: token,
+      gasLimit: BigInt.from(1000000),
+      data: data,
+      value: BigInt.zero,
+      chainId: BigInt.from(11155420), // OP Sepolia
+      gasPrice: BigInt.from(1500375),
+    );
+
+    final estimate = transaction.toEstimate();
+    expect(estimate['gas'], '0xf4240'); // 1_000_000
+    // the other fields the request relies on are still present.
+    expect(estimate['from'], from.address);
+    expect(estimate['to'], token.address);
+    expect(estimate['value'], '0x0');
+    expect(estimate['data'], BytesUtils.toHexString(data, prefix: '0x'));
+  });
+
+  /// When no gas limit is set (the auto-fill case, where the limit is exactly
+  /// what we're estimating), `gas` must be omitted so the payload is unchanged.
+  test('toEstimate omits gas when gasLimit is zero', () {
+    final transaction = ETHTransaction(
+      nonce: 0,
+      from: ETHAddress('0x9771D14139a63561189E190BC808a1Ea160ec52d'),
+      type: ETHTransactionType.legacy,
+      to: ETHAddress('0x5fd84259d66Cd46123540766Be93DFE6D43130D7'),
+      gasLimit: BigInt.zero,
+      data: const [],
+      value: ETHHelper.toWei('0.01'),
+      chainId: BigInt.from(11155420),
+      gasPrice: BigInt.from(1500375),
+    );
+
+    final estimate = transaction.toEstimate();
+    expect(estimate.containsKey('gas'), isFalse);
+  });
 }
