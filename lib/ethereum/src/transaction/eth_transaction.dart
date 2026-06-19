@@ -1108,6 +1108,7 @@ class ETHTransaction {
     return {
       if (from != null) 'from': from?.address,
       if (to != null) 'to': to?.address,
+      if (gasLimit > BigInt.zero) 'gas': '0x${gasLimit.toRadixString(16)}',
       'value': '0x${value.toRadixString(16)}',
       if (data.isNotEmpty) 'data': BytesUtils.toHexString(data, prefix: '0x'),
       if (accessList?.isNotEmpty ?? false)
